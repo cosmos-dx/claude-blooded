@@ -15,7 +15,7 @@ DISK_GB="${DISK_GB:-12}"
 NAME="${NAME:-claude-blooded}"
 REPO="${REPO:-https://github.com/cosmos-dx/claude-blooded.git}"
 KEY_FILE="$HOME/.ssh/$KEY_NAME.pem"
-GROUPS="$SECURITY_GROUP_ID${EXTRA_SECURITY_GROUP_ID:+,$EXTRA_SECURITY_GROUP_ID}"
+SG_JSON="\"$SECURITY_GROUP_ID\"${EXTRA_SECURITY_GROUP_ID:+,\"$EXTRA_SECURITY_GROUP_ID\"}"   # not $GROUPS: bash reserves it
 
 case "$INSTANCE_TYPE" in t4g.*|c7g.*|m7g.*|c8g.*) ARCH=arm64 ;; *) ARCH=x86_64 ;; esac
 
@@ -32,7 +32,7 @@ AMI=$(aws ec2 describe-images --owners amazon \
 echo "AMI: $AMI ($ARCH)"
 
 IID=$(aws ec2 run-instances --image-id "$AMI" --instance-type "$INSTANCE_TYPE" --key-name "$KEY_NAME" \
-  --network-interfaces "DeviceIndex=0,SubnetId=$SUBNET_ID,Groups=$GROUPS,AssociatePublicIpAddress=true" \
+  --network-interfaces "[{\"DeviceIndex\":0,\"SubnetId\":\"$SUBNET_ID\",\"Groups\":[$SG_JSON],\"AssociatePublicIpAddress\":true}]" \
   --block-device-mappings "DeviceName=/dev/xvda,Ebs={VolumeSize=$DISK_GB,VolumeType=gp3,DeleteOnTermination=true}" \
   --metadata-options "HttpTokens=required,HttpEndpoint=enabled" \
   --credit-specification CpuCredits=standard \
