@@ -15,14 +15,37 @@ async function boot() {
   const o = catalog.options;
   $("#language").innerHTML = o.languages.map((l) => `<option value="${esc(l.code)}">${esc(l.label)}</option>`).join("");
   $("#seconds").innerHTML = o.lengths.map((s) => `<option value="${s}">${s < 60 ? s + " seconds" : s / 60 + (s === 60 ? " minute" : " minutes")}</option>`).join("");
-  $("#skill").innerHTML = o.skills.map((s) => `<option>${esc(s)}</option>`).join("");
-  const themes = () => ($("#theme").innerHTML = (o.themes[$("#skill").value] || []).map((t) => `<option>${esc(t)}</option>`).join(""));
-  $("#skill").onchange = themes; themes();
+  $("#skill").innerHTML = o.skills.map((s) => `<option value="${esc(s.code)}">${esc(s.name)}${s.community ? " · community" : ""}</option>`).join("");
+  $("#format").innerHTML = o.formats.map((f) => `<option value="${esc(f.code)}">${esc(f.code)} · ${esc(f.label)}</option>`).join("");
+  const themes = () => { $("#theme").innerHTML = (o.themes[$("#skill").value] || []).map((t) => `<option>${esc(t)}</option>`).join(""); preview(); };
+  const preview = () => {
+    const s = o.skills.find((x) => x.code === $("#skill").value) || {}, fmt = $("#format").value.replace(":", "x");
+    const theme = s.community ? "auto" : $("#theme").value;    // previews exist for built-in themes; packs show their engine's auto look
+    $("#fmt-preview").innerHTML = `<img alt="preview of the chosen style" src="/assets/previews/${esc(s.engine)}-${esc(theme)}-${fmt}.jpg" onerror="this.remove()">`;
+  };
+  $("#skill").onchange = themes; $("#theme").onchange = preview; $("#format").onchange = preview; themes();
+  tokens();
   $("#plans").innerHTML = planCards(catalog.plans, "Buy");
   document.querySelectorAll("[data-plan]").forEach((b) => (b.onclick = () => buy(b.dataset.plan, refresh).catch((e) => alert(e.message))));
   renderCredits(user.credits);
   $("#create").onsubmit = create;
   refresh(); setInterval(refresh, 4000);
+}
+
+async function tokens() {
+  const t = await api("/api/tokens");
+  $("#mcp-url").textContent = t.mcp_url;
+  $("#tokens").innerHTML = t.tokens.map((k) => `<div>${esc(k.name)} · ${esc(k.prefix)}… <a href="#" data-revoke="${esc(k.id)}">revoke</a></div>`).join("");
+  document.querySelectorAll("[data-revoke]").forEach((a) => (a.onclick = async (e) => {
+    e.preventDefault(); await api(`/api/tokens/${a.dataset.revoke}`, { method: "DELETE" }); tokens();
+  }));
+  $("#tok-new").onclick = async () => {
+    const k = await api("/api/tokens", { method: "POST", body: { name: $("#tok-name").value || "mcp" } }).catch((e) => alert(e.message));
+    if (!k) return;
+    $("#tok-new-out").style.display = "";
+    $("#tok-new-out").textContent = `Copy it now, it won't be shown again:\n${k.token}`;
+    tokens();
+  };
 }
 
 function renderCredits(credits) {
@@ -64,7 +87,7 @@ function card(j) {
   const left = minsLeft(j.expires_at);
   return `<div class="job"><div class="top"><div class="title">${esc(j.title || r.problem?.slice(0, 80) || "Reel")}</div>
       <span class="status ${j.status}">${esc(STAGES[j.stage] || j.stage)}</span></div>
-    <div class="status">${esc(r.skill)} · ${esc(r.theme)} · ${r.seconds}s · ${esc(r.language)}</div>
+    <div class="status">${esc(r.skill)} · ${esc(r.theme)} · ${esc(r.format || "9:16")} · ${r.seconds}s · ${esc(r.language)}</div>
     ${j.status === "running" || j.status === "queued" ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ""}
     ${j.error ? `<div class="err">${esc(j.error)} (your credit was returned)</div>` : ""}
     ${j.status === "done" ? `<video class="preview" controls preload="metadata" src="/api/jobs/${j.id}/files/reel.mp4?inline=1"></video>

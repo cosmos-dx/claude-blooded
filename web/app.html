@@ -4,12 +4,12 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{brand}}: studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
 <nav class="top"><div class="wrap">
-  <a href="/" class="mono" style="text-decoration:none;font-weight:600">{{brand}}</a>
+  <a href="/" class="brand">{{brand}}</a>
   <div class="links"><span id="who" class="mono"></span><a id="admin-link" href="/admin" style="display:none">Admin</a><button class="btn small ghost" id="logout">Log out</button></div>
 </div></nav>
 
@@ -29,10 +29,20 @@
         <div class="field"><label>Style</label><select name="skill" id="skill"></select></div>
         <div class="field"><label>Theme</label><select name="theme" id="theme"></select></div>
       </div>
-      <div class="field"><label>Narrator</label><select name="narrator"><option value="female">Female creator</option><option value="male">Male</option></select></div>
+      <div class="row">
+        <div class="field"><label>Format</label><select name="format" id="format"></select></div>
+        <div class="field"><label>Narrator</label><select name="narrator"><option value="female">Female creator</option><option value="male">Male</option></select></div>
+      </div>
+      <div class="fmt-preview" id="fmt-preview"></div>
       <div class="err" id="create-err"></div>
       <button class="btn" type="submit" id="go">Make the reel  →</button>
     </form>
+    <details style="margin-top:24px"><summary class="status" style="cursor:pointer">developer access · MCP</summary>
+      <p class="hint" style="margin:12px 0">Connect Claude, Cursor or any MCP client to <code id="mcp-url"></code> with a token to submit style packs and make reels.</p>
+      <div style="display:flex;gap:8px"><div class="field" style="margin:0;flex:1"><input id="tok-name" placeholder="token name, e.g. cursor"></div><button class="btn small" id="tok-new">Create</button></div>
+      <pre class="pack" id="tok-new-out" style="display:none;margin-top:10px"></pre>
+      <div class="events" id="tokens"></div>
+    </details>
   </div>
   <div>
     <div id="buy" style="display:none;margin-bottom:28px"><div class="mono" style="margin-bottom:12px">get more reels</div><div class="plans" id="plans"></div></div>
