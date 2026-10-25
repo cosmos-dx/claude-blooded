@@ -84,6 +84,6 @@ Tested end to end over HTTP: bad pack rejected with a fix suggestion, fixed pack
 1. Get a working LLM key (fresh MegaLLM key, or Anthropic/Bedrock). Put it in `/etc/claude-blooded.env`, `sudo systemctl restart claude-blooded-api claude-blooded-worker`, make one test reel.
 2. Push `reel-kinetic-01` to `hireish/automations-marketing`.
 3. Product name ideas with domain availability.
-4. Razorpay live keys and SMTP (login codes go to the server log until then).
+4. Razorpay live keys. (Login email works: SMTP via the Hireish GoDaddy mailbox official@hireish.in, sender shown as "Reel Studio".)
 5. Hermes agent workflow, if still wanted.
 6. README: add the Design Director, formats and MCP sections.
