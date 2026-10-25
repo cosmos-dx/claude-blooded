@@ -33,11 +33,15 @@ class AuthService:
         if self.otps.sent_since(email, 60) >= int(self.otp_cfg.get("per_email_per_hour", 5)):
             raise TooManyRequests("too many codes requested; try again in an hour")
         code = new_otp(int(self.otp_cfg.get("length", 6)))
-        self.otps.create(email, hash_otp(email, code, self.secret), int(self.otp_cfg.get("ttl_minutes", 10)))
+        otp_id = self.otps.create(email, hash_otp(email, code, self.secret), int(self.otp_cfg.get("ttl_minutes", 10)))
         name = self.config.get("app.name")
-        self.mailer.send(email, f"{code} is your {name} login code",
-                         f"Your {name} login code is {code}. It expires in {self.otp_cfg.get('ttl_minutes', 10)} minutes.\n"
-                         f"If you didn't ask for it, ignore this email.")
+        try:
+            self.mailer.send(email, f"{code} is your {name} login code",
+                             f"Your {name} login code is {code}. It expires in {self.otp_cfg.get('ttl_minutes', 10)} minutes.\n"
+                             f"If you didn't ask for it, ignore this email.")
+        except Exception:
+            self.otps.delete(otp_id)          # a code that never arrived must not count against the send limits
+            raise
 
     def verify_code(self, email: str, code: str) -> tuple[dict, str]:
         email = self.normalize(email)

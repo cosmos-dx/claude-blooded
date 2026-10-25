@@ -23,9 +23,12 @@ class UserDAO(BaseDAO):
 
 
 class OtpDAO(BaseDAO):
-    def create(self, email: str, code_hash: str, ttl_minutes: int, conn=None) -> None:
-        self.run("INSERT INTO otp_codes (email, code_hash, expires_at) VALUES (%s, %s, now() + make_interval(mins => %s))",
-                 (email.lower(), code_hash, ttl_minutes), conn)
+    def create(self, email: str, code_hash: str, ttl_minutes: int, conn=None) -> int:
+        return self.one("""INSERT INTO otp_codes (email, code_hash, expires_at) VALUES (%s, %s, now() + make_interval(mins => %s))
+                           RETURNING id""", (email.lower(), code_hash, ttl_minutes), conn)["id"]
+
+    def delete(self, otp_id: int, conn=None) -> None:
+        self.run("DELETE FROM otp_codes WHERE id = %s", (otp_id,), conn)
 
     def latest_active(self, email: str, conn=None) -> Optional[dict]:
         return self.one("""SELECT * FROM otp_codes WHERE email = %s AND consumed_at IS NULL AND expires_at > now()
