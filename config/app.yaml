@@ -60,7 +60,7 @@ llm:
       kind: anthropic_compatible
       api_key: ${MEGALLM_API_KEY:-}
       base_url: https://ai.megallm.io
-      models: {opus: "${MEGALLM_OPUS_MODEL:-claude-opus-5-5}", haiku: "${MEGALLM_HAIKU_MODEL:-claude-haiku-5-5}"}
+      models: {opus: "${MEGA_LLM_MODEL_ID:-claude-opus-5-5}", haiku: "${MEGA_LLM_MODEL_ID:-claude-haiku-5-5}"}   # one id overrides both
     fake:
       kind: fake
       enabled: ${LLM_FAKE:-false}  # deterministic offline provider for tests
