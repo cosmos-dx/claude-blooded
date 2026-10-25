@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hireish Reels: admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<nav class="top"><div class="wrap"><a href="/app" class="mono" style="text-decoration:none">← Studio</a><span class="mono">admin · last 30 days</span></div></nav>
+<div class="wrap" style="padding:32px 20px 60px">
+  <div class="plans" id="kpis" style="grid-template-columns:repeat(4,1fr)"></div>
+  <h2 class="display" style="font-size:40px;margin:40px 0 12px">Spend by provider</h2>
+  <table class="t" id="spend"></table>
+  <h2 class="display" style="font-size:40px;margin:40px 0 12px">Jobs</h2>
+  <table class="t" id="jobs"></table>
+  <p class="status" id="providers" style="margin-top:28px"></p>
+</div>
+<script src="/assets/site.js"></script>
+<script>
+api("/api/admin/summary").then((s) => {
+  const k = [["Revenue", `₹${s.revenue_inr}`, `${s.paid_orders} paid orders`], ["Net after GST + fees", `₹${s.net_revenue_inr}`, ""],
+             ["API spend", `₹${s.api_spend_inr}`, `today ₹${s.spend_today_inr}`], ["Margin", `₹${s.margin_inr}`, `${s.users} users`]];
+  $("#kpis").innerHTML = k.map(([a, b, c]) => `<div class="plan"><div class="mono">${a}</div><div class="price">${b}</div><div class="status">${c}</div></div>`).join("");
+  $("#spend").innerHTML = "<tr><th>Kind</th><th>Provider</th><th>Model</th><th>Calls</th><th>In tokens</th><th>Out tokens</th><th>Voice chars</th><th>₹</th></tr>" +
+    s.spend.map((r) => `<tr><td>${esc(r.kind)}</td><td>${esc(r.provider)}</td><td>${esc(r.model)}</td><td>${r.calls}</td><td>${r.input_tokens}</td><td>${r.output_tokens}</td><td>${r.characters}</td><td>${(r.inr || 0).toFixed(2)}</td></tr>`).join("");
+  $("#jobs").innerHTML = "<tr><th>Status</th><th>Count</th></tr>" + s.jobs.map((r) => `<tr><td>${esc(r.status)}</td><td>${r.n}</td></tr>`).join("");
+  $("#providers").textContent = "LLM providers configured: " + (s.llm_providers_available.join(", ") || "none");
+}).catch((e) => (document.body.innerHTML = `<p class="wrap err" style="padding:40px">${esc(e.message)}</p>`));
+</script>
+</body>
+</html>

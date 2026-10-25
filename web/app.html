@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hireish Reels: studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a href="/" class="mono" style="text-decoration:none;font-weight:600">Hireish · Reels</a>
+  <div class="links"><span id="who" class="mono"></span><a id="admin-link" href="/admin" style="display:none">Admin</a><button class="btn small ghost" id="logout">Log out</button></div>
+</div></nav>
+
+<div class="wrap app-grid">
+  <div class="panel">
+    <h2>New reel</h2>
+    <div class="credits" id="credits"></div>
+    <form id="create">
+      <div class="field"><label>The problem or topic</label><textarea name="problem" required placeholder="e.g. How does a rate limiter handle millions of requests without two servers letting the same request through?"></textarea></div>
+      <div class="field"><label>Emotions &amp; details</label><textarea name="details" placeholder="Tone, examples, must-cover points, jokes, who it's for…"></textarea></div>
+      <div class="field"><label>Voice prompt <span class="hint">(optional)</span></label><input name="voice_prompt" placeholder="e.g. deep, slow, lazy Bihari bhaiya; or calm female interviewer"></div>
+      <div class="row">
+        <div class="field"><label>Language</label><select name="language" id="language"></select></div>
+        <div class="field"><label>Length</label><select name="seconds" id="seconds"></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Style</label><select name="skill" id="skill"></select></div>
+        <div class="field"><label>Theme</label><select name="theme" id="theme"></select></div>
+      </div>
+      <div class="field"><label>Narrator</label><select name="narrator"><option value="female">Female creator</option><option value="male">Male</option></select></div>
+      <div class="err" id="create-err"></div>
+      <button class="btn" type="submit" id="go">Make the reel  →</button>
+    </form>
+  </div>
+  <div>
+    <div id="buy" style="display:none;margin-bottom:28px"><div class="mono" style="margin-bottom:12px">get more reels</div><div class="plans" id="plans"></div></div>
+    <div class="mono" style="margin-bottom:12px">your reels</div>
+    <div id="jobs"><p class="status">nothing yet. your first reel is free</p></div>
+  </div>
+</div>
+
+<script src="/assets/site.js"></script>
+<script src="/assets/app.js"></script>
+</body>
+</html>

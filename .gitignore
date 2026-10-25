@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+*.pem
+__pycache__/
+*.pyc
+.venv/
+var/
+data/
+*.mp4
+*.wav
+*.mp3
+.DS_Store

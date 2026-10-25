@@ -1,0 +1,33 @@
+{
+ "_note": "Each pair is [background, foreground, accent]. Foreground on background must stay >= 7:1 contrast; the accent is for stickers and the hard offset shadow.",
+ "poster": {
+  "description": "Warning yellow, ink, signal red, bottle green, warm paper. Loud, brutalist, street-poster. Default.",
+  "pairs": {
+   "yk": [[255, 213, 0], [13, 13, 13], [232, 38, 28]],
+   "ky": [[13, 13, 13], [255, 213, 0], [232, 38, 28]],
+   "rp": [[232, 38, 28], [244, 239, 230], [13, 13, 13]],
+   "pk": [[244, 239, 230], [13, 13, 13], [232, 38, 28]],
+   "gp": [[11, 93, 59], [244, 239, 230], [255, 213, 0]],
+   "kr": [[13, 13, 13], [232, 38, 28], [255, 213, 0]],
+   "yr": [[255, 213, 0], [13, 13, 13], [11, 93, 59]]
+  }
+ },
+ "redline": {
+  "description": "Paper white, ink black and one signal red. Editorial, serious, newspaper-front-page energy.",
+  "pairs": {
+   "pk": [[244, 239, 230], [13, 13, 13], [214, 40, 30]],
+   "kp": [[13, 13, 13], [244, 239, 230], [214, 40, 30]],
+   "rp": [[214, 40, 30], [244, 239, 230], [13, 13, 13]],
+   "pr": [[244, 239, 230], [214, 40, 30], [13, 13, 13]]
+  }
+ },
+ "forest": {
+  "description": "Deep forest green, cream and acid lime with a tomato accent. Fresh, calm, premium-outdoorsy.",
+  "pairs": {
+   "gc": [[16, 61, 43], [240, 233, 214], [205, 255, 60]],
+   "cg": [[240, 233, 214], [16, 61, 43], [232, 76, 45]],
+   "lg": [[205, 255, 60], [16, 61, 43], [232, 76, 45]],
+   "gl": [[16, 61, 43], [205, 255, 60], [240, 233, 214]]
+  }
+ }
+}

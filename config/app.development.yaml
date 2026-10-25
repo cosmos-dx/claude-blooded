@@ -1,0 +1,11 @@
+# Local development overlay (APP_ENV=development)
+security:
+  cookie_secure: false
+payments:
+  gateway: ${PAYMENT_GATEWAY:-mock}
+mail:
+  provider: ${MAIL_PROVIDER:-console}
+app:
+  data_dir: ${DATA_DIR:-./var}
+render:
+  font_dir: ${REEL_FONT_DIR:-./var/fonts}

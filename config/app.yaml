@@ -1,0 +1,167 @@
+# Claude Blooded — all business configuration lives here (no values in code).
+# ${VAR} / ${VAR:-default} are read from the environment; secrets only ever come from there.
+# Overlay: config/app.<APP_ENV>.yaml is deep-merged on top (see app.development.yaml).
+
+app:
+  name: Hireish Reels
+  env: ${APP_ENV:-production}
+  base_url: ${PUBLIC_BASE_URL:-http://localhost:8000}
+  admin_emails: ${ADMIN_EMAILS:-}
+  data_dir: ${DATA_DIR:-/var/lib/claude-blooded}
+  timezone: Asia/Kolkata
+  support_email: official@hireish.in
+
+security:
+  jwt_secret: ${JWT_SECRET}
+  session_hours: 72
+  cookie_name: hr_session
+  cookie_secure: ${COOKIE_SECURE:-true}   # set false only until HTTPS is enabled
+  otp: {length: 6, ttl_minutes: 10, max_attempts: 5, resend_seconds: 45, per_email_per_hour: 5}
+
+database:
+  url: ${DATABASE_URL}
+  schema: studio
+  pool_min: 1
+  pool_max: 4
+
+# ---------------------------------------------------------------- products
+# price_inr is GST-inclusive. Each plan grants `videos` credits of up to `max_seconds`.
+plans:
+  - {code: free,   name: First reel free, price_inr: 0,    videos: 1, max_seconds: 30,  tier: free,     public: false}
+  - {code: spark,  name: Spark,           price_inr: 100,  videos: 3, max_seconds: 30,  tier: standard, public: true}
+  - {code: boost,  name: Boost,           price_inr: 200,  videos: 3, max_seconds: 60,  tier: standard, public: true, highlight: true}
+  - {code: pro,    name: Pro,             price_inr: 500,  videos: 4, max_seconds: 120, tier: standard, public: true}
+  - {code: studio, name: Studio,          price_inr: 1000, videos: 7, max_seconds: 180, tier: standard, public: true}
+
+signup_grant: {enabled: true, plan: free}
+
+tiers:
+  free:     {llm_profile: economy, tts_model: eleven_flash_v2_5, watermark: "made with Hireish Reels"}
+  standard: {llm_profile: premium, tts_model: eleven_v3,         watermark: ""}
+
+# ---------------------------------------------------------------- models
+llm:
+  providers:                       # kind -> implementation in app/llm (factory)
+    anthropic:
+      kind: anthropic
+      api_key: ${ANTHROPIC_API_KEY:-}
+      supports_fallbacks: true     # server-side refusal fallbacks (Claude API only)
+      models: {opus: claude-opus-5-5, haiku: claude-haiku-5-5}
+    bedrock:
+      kind: bedrock
+      api_key: ${AWS_BEDROCK_API_KEY_ANTHROPIC:-}
+      region: ${AWS_BEDROCK_REGION:-ap-south-1}
+      models: {opus: anthropic.claude-opus-5-5, haiku: anthropic.claude-haiku-5-5}
+    megallm:
+      kind: anthropic_compatible
+      api_key: ${MEGALLM_API_KEY:-}
+      base_url: https://ai.megallm.io
+      models: {opus: "${MEGALLM_OPUS_MODEL:-claude-opus-5-5}", haiku: "${MEGALLM_HAIKU_MODEL:-claude-haiku-5-5}"}
+    fake:
+      kind: fake
+      enabled: ${LLM_FAKE:-false}  # deterministic offline provider for tests
+  profiles:                        # model alias + effort + provider order (first available wins, later ones are fallbacks)
+    premium: {model: opus,  effort: medium, max_tokens: 24000, providers: [anthropic, bedrock, megallm, fake]}
+    economy: {model: haiku, effort: low,    max_tokens: 8000,  providers: [anthropic, bedrock, megallm, fake]}
+  roles:                           # agent -> profile ("tier" = the job tier's llm_profile)
+    moderator: economy
+    researcher: tier
+    planner: tier
+    voice_director: economy
+    publisher: economy
+    trend_scout: premium
+  prices_usd_per_mtok:
+    opus:  {input: 4.0, output: 20.0, cache_read: 0.20, cache_write: 5.0}
+    haiku: {input: 0.10, output: 0.50, cache_read: 0.01, cache_write: 0.125}
+
+# ---------------------------------------------------------------- voice
+tts:
+  provider: ${TTS_PROVIDER:-elevenlabs}
+  elevenlabs:
+    api_key: ${ELEVEN_LABS_API_KEY:-}
+    base_url: https://api.elevenlabs.io
+    usd_per_1k_chars: {eleven_v3: 0.22, eleven_flash_v2_5: 0.11}
+  words_per_second: 2.3            # planning budget for spoken words
+  voices:                          # catalog the Voice Director picks from
+    - {code: creator-f-in,    voice_id: 8nsE0QhIEjiV3dTeTRAZ, language: en-IN, gender: female, persona: "energetic young tech creator",
+       settings: {stability: 0.0, similarity_boost: 0.8, style: 0.6, use_speaker_boost: true}}
+    - {code: calm-f-in,       voice_id: sZA9RXcO7cP6NwuPwtSi, language: en-IN, gender: female, persona: "calm professional interviewer",
+       settings: {stability: 0.5, similarity_boost: 0.8, style: 0.2, use_speaker_boost: true}}
+    - {code: young-m-in,      voice_id: Z8A2MFK71RIqBd7kkt63, language: en-IN, gender: male,   persona: "young quick engineer",
+       settings: {stability: 0.0, similarity_boost: 0.8, style: 0.5, use_speaker_boost: true}}
+    - {code: bhojpuri-deep-m, voice_id: TOb8uIlZyj8EyCLsz5q3, language: bho,   gender: male,   persona: "deep, slow, lazy Bihari bhaiya",
+       settings: {stability: 0.5, similarity_boost: 0.85, style: 0.2, use_speaker_boost: true}}
+    - {code: bhojpuri-loud-m, voice_id: mQBLY45L3SpvAlYVX5Cx, language: bho,   gender: male,   persona: "loud comic village uncle",
+       settings: {stability: 0.0, similarity_boost: 0.8, style: 0.6, use_speaker_boost: true}}
+  defaults: {N: creator-f-in, R: calm-f-in, C: young-m-in}
+  languages:                       # what the create form offers
+    - {code: en-IN, label: English (India)}
+    - {code: hi-en, label: Hinglish}
+    - {code: hi,    label: Hindi}
+    - {code: bho,   label: Bhojpuri}
+
+# ---------------------------------------------------------------- skills, workflow, rendering
+skills:
+  default: reel-tutor-01
+  enabled: [reel-tutor-01, reel-kinetic-01]
+  themes: {reel-tutor-01: [mono, paper, ocean], reel-kinetic-01: [poster, redline, forest]}
+
+workflows:
+  reel: [moderate, research, plan, voice, render, mix, publish]
+
+render:
+  processes: ${RENDER_PROCESSES:-1}
+  font_dir: ${REEL_FONT_DIR:-/usr/share/fonts/reel}
+  length_tolerance_seconds: 3
+  shorten_rounds: 2
+  loudness: {voice: "I=-14:TP=-1.5:LRA=11", bed: "I=-20:TP=-2:LRA=11"}
+
+worker:
+  poll_seconds: 3
+  job_timeout_minutes: 60
+  max_attempts: 1
+
+storage:
+  provider: local
+  retention_minutes: 30
+  files: [reel.mp4, reel-no-voice.mp4, captions.srt, script.md, publish.md]
+
+payments:
+  gateway: ${PAYMENT_GATEWAY:-razorpay}
+  currency: INR
+  gst_percent: 18                  # plan prices include GST
+  gateway_fee_percent: 2
+  razorpay:
+    key_id: ${RAZORPAY_KEY_ID:-}
+    key_secret: ${RAZORPAY_KEY_SECRET:-}
+    webhook_secret: ${RAZORPAY_WEBHOOK_SECRET:-}
+    api_base: https://api.razorpay.com/v1
+
+mail:
+  provider: ${MAIL_PROVIDER:-smtp}
+  smtp:
+    host: ${SMTP_HOST:-}
+    port: ${SMTP_PORT:-587}
+    user: ${SMTP_USER:-}
+    password: ${SMTP_PASSWORD:-}
+    from_email: ${SMTP_FROM_EMAIL:-}
+
+money: {usd_inr: "${USD_INR:-88}"}
+
+limits:
+  jobs_running_per_user: 2
+  prompt_max_chars: 1500
+
+moderation:
+  enabled: true
+  allow_profanity: true            # comedy/regional slang allowed; hate, harassment of real people and sexual content are not
+
+trends:
+  enabled: ${TRENDS_ENABLED:-false}
+  youtube_api_key: ${YOUTUBE_API_KEY:-}
+  region: IN
+  run_hour_ist: 6
+  niches: [tech interviews, system design, coding, careers in tech]
+
+ui:
+  show_costs_to_users: false       # admins always see costs

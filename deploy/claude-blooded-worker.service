@@ -1,0 +1,16 @@
+[Unit]
+Description=Hireish Reels render worker (claude-blooded)
+After=network-online.target claude-blooded-api.service
+
+[Service]
+User=blooded
+Group=blooded
+WorkingDirectory=/opt/claude-blooded
+EnvironmentFile=/etc/claude-blooded.env
+ExecStart=/opt/claude-blooded/.venv/bin/python -m app.workers.worker
+Restart=always
+RestartSec=15
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

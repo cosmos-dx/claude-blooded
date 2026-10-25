@@ -1,0 +1,19 @@
+[Unit]
+Description=Hireish Reels API (claude-blooded)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=blooded
+Group=blooded
+WorkingDirectory=/opt/claude-blooded
+EnvironmentFile=/etc/claude-blooded.env
+# Migrations are idempotent; a missing DATABASE_URL must not stop the landing page from serving.
+ExecStartPre=-/opt/claude-blooded/.venv/bin/python -m app.db.migrate
+ExecStart=/opt/claude-blooded/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=5
+MemoryMax=320M
+
+[Install]
+WantedBy=multi-user.target
