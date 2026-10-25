@@ -37,7 +37,8 @@ def _resolve(value: Any) -> Any:
     if not isinstance(value, str) or "${" not in value:
         return value
     whole = _PLACEHOLDER.fullmatch(value.strip())
-    out = _PLACEHOLDER.sub(lambda m: os.environ.get(m.group(1), m.group(2) if m.group(2) is not None else ""), value)
+    # shell semantics: ${VAR:-default} uses the default when VAR is unset *or empty* (env files keep blank KEY= lines)
+    out = _PLACEHOLDER.sub(lambda m: os.environ.get(m.group(1)) or (m.group(2) or ""), value)
     if whole:  # a value that is exactly one placeholder may become a number or boolean
         if _NUMBER.match(out):
             return float(out) if "." in out else int(out)

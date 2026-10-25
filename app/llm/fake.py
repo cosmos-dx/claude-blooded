@@ -52,7 +52,7 @@ _ANSWERS = {
                                                     "items": [{"name": "CLIENT", "sub": "asks"}, {"name": "SERVER", "sub": "answers"}]}, "lines": _lines(1)},
             {"id": "outro", "chapter": None, "visual": {"type": "orb", "word": "FOLLOW FOR MORE"}, "lines": _lines(1)}]},
     "plan_kinetic": lambda p: {
-        "title": "Topic explained", "slug": "topic-explained", "brand": "HIREISH REELS", "palette": "poster", "caption": "Quick explainer",
+        "title": "Topic explained", "slug": "topic-explained", "brand": "TOPIC EXPLAINED", "palette": "poster", "caption": "Quick explainer",
         "lines": [{**_lines(1)[0], "beats": [{"word": 0, "big": "LINE\nONE", "pair": "yk", "sticker": "star", "label": "go"}]},
                   {**_lines(1)[0], "beats": [{"word": 0, "big": "LINE\nTWO", "pair": "ky", "sticker": "check", "label": ""}]}]},
     "shorten": lambda p: {"edits": []},

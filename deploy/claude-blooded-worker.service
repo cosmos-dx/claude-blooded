@@ -1,6 +1,6 @@
 [Unit]
-Description=Hireish Reels render worker (claude-blooded)
-After=network-online.target claude-blooded-api.service
+Description=claude-blooded reels render worker
+After=network-online.target postgresql.service claude-blooded-api.service
 
 [Service]
 User=blooded

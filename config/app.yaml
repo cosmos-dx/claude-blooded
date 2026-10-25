@@ -3,13 +3,13 @@
 # Overlay: config/app.<APP_ENV>.yaml is deep-merged on top (see app.development.yaml).
 
 app:
-  name: Hireish Reels
+  name: ${BRAND_NAME:-Reel Studio}  # shown on every page and in the free-tier watermark
   env: ${APP_ENV:-production}
   base_url: ${PUBLIC_BASE_URL:-http://localhost:8000}
   admin_emails: ${ADMIN_EMAILS:-}
   data_dir: ${DATA_DIR:-/var/lib/claude-blooded}
   timezone: Asia/Kolkata
-  support_email: official@hireish.in
+  support_email: ${SUPPORT_EMAIL:-}   # footer contact; hidden when empty
 
 security:
   jwt_secret: ${JWT_SECRET}
@@ -36,7 +36,7 @@ plans:
 signup_grant: {enabled: true, plan: free}
 
 tiers:
-  free:     {llm_profile: economy, tts_model: eleven_flash_v2_5, watermark: "made with Hireish Reels"}
+  free:     {llm_profile: economy, tts_model: eleven_flash_v2_5, watermark: "made with {brand}"}
   standard: {llm_profile: premium, tts_model: eleven_v3,         watermark: ""}
 
 # ---------------------------------------------------------------- models

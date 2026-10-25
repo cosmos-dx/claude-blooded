@@ -1,10 +1,12 @@
 """ASGI entry point: uvicorn app.main:app"""
 from __future__ import annotations
 
+import html
 from contextlib import asynccontextmanager
+from functools import lru_cache
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import api
@@ -28,8 +30,18 @@ async def lifespan(_: FastAPI):
     c.db.close()
 
 
+@lru_cache(maxsize=None)
+def page(name: str) -> str:
+    """A web/ page with {{brand}} and {{contact}} filled from config (rendered once per process)."""
+    cfg = get_container().config
+    brand = html.escape(str(cfg.get("app.name")))
+    email = html.escape(str(cfg.get("app.support_email") or ""))
+    contact = f'<span>Questions? <a href="mailto:{email}">{email}</a></span>' if email else ""
+    return (WEB / name).read_text().replace("{{brand}}", brand).replace("{{contact}}", contact)
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Hireish Reels", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    app = FastAPI(title=str(get_container().config.get("app.name")), docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.include_router(api)
     app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
 
@@ -50,8 +62,8 @@ def create_app() -> FastAPI:
         resp.headers["X-Frame-Options"] = "DENY"
         return resp
 
-    for path, page in (("/", "index.html"), ("/app", "app.html"), ("/admin", "admin.html")):
-        app.add_api_route(path, (lambda p=page: FileResponse(WEB / p)), methods=["GET"], include_in_schema=False)
+    for path, fname in (("/", "index.html"), ("/app", "app.html"), ("/admin", "admin.html")):
+        app.add_api_route(path, (lambda f=fname: HTMLResponse(page(f))), methods=["GET"], include_in_schema=False)
     return app
 
 

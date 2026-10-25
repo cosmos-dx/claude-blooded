@@ -1,4 +1,4 @@
-# Hireish Reels (claude-blooded)
+# claude-blooded
 
 Type a topic, get a finished vertical reel: a script researched and planned by Claude, an Indian-accent voiceover from ElevenLabs, a rendered 1080×1920 video with music, captions and a posting pack for Instagram, YouTube and LinkedIn.
 
@@ -56,7 +56,8 @@ For a fully offline run, set `LLM_FAKE=true`, `TTS_PROVIDER=fake`, `PAYMENT_GATE
 
 | Variable | Needed for |
 |---|---|
-| `DATABASE_URL` | everything except the landing page |
+| `BRAND_NAME`, `SUPPORT_EMAIL` | product name on every page and in the free watermark; footer contact |
+| `DATABASE_URL` | everything except the landing page (bootstrap sets up a local Postgres when this is blank) |
 | `JWT_SECRET` | login sessions (bootstrap generates one on the server) |
 | `ANTHROPIC_API_KEY`, `AWS_BEDROCK_API_KEY_ANTHROPIC`, `MEGALLM_API_KEY` | at least one, for scripts |
 | `ELEVEN_LABS_API_KEY` | voiceovers |
@@ -67,13 +68,22 @@ For a fully offline run, set `LLM_FAKE=true`, `TTS_PROVIDER=fake`, `PAYMENT_GATE
 
 The full list is in [.env.example](.env.example). Comments in env files must be on their own line, because systemd keeps everything after `=` as the value.
 
-## Deploy (AWS, one small box)
+## Deploy (AWS Lightsail, one small box)
 
 ```bash
-SUBNET_ID=subnet-… SECURITY_GROUP_ID=sg-… ./deploy/provision_ec2.sh
+AWS_PROFILE=personal AWS_DEFAULT_REGION=ap-south-1 ./deploy/provision_lightsail.sh
 ```
 
-The script launches a `t4g.nano` (Graviton, Amazon Linux 2023), creates an SSH key in `~/.ssh/claude-blooded.pem` and runs [`deploy/bootstrap.sh`](deploy/bootstrap.sh). Bootstrap adds 2 GB swap and installs Python, nginx and static ffmpeg, the fonts, two systemd services (`claude-blooded-api`, `claude-blooded-worker`) and nginx on port 80. Re-run `bootstrap.sh` on the server to deploy a new commit.
+The script creates a Lightsail `nano_3_1` instance (Amazon Linux 2023), imports `~/.ssh/claude-blooded.pem`, attaches a static IP and opens ports 22, 80 and 443. It then runs [`deploy/bootstrap.sh`](deploy/bootstrap.sh), which:
+
+- adds 2 GB of swap
+- installs Python, nginx, static ffmpeg and the fonts
+- sets up Postgres 16 on localhost with a random password (skipped when `/etc/claude-blooded.env` already has a real `DATABASE_URL`)
+- installs two systemd services (`claude-blooded-api`, `claude-blooded-worker`) behind nginx on port 80
+
+Re-run either script to deploy a new commit.
+
+On EC2 instead: `SUBNET_ID=subnet-… SECURITY_GROUP_ID=sg-… ./deploy/provision_ec2.sh` launches a `t4g.nano` with the same bootstrap.
 
 Then on the server:
 
@@ -84,19 +94,17 @@ sudo systemctl restart claude-blooded-api claude-blooded-worker
 
 For HTTPS, point a domain at the instance and run `sudo bash deploy/enable_https.sh reels.example.com you@example.com`. That uses Let's Encrypt, so running it accepts their subscriber agreement.
 
-### Hosting cost (ap-south-1, on-demand, from the AWS Pricing API)
+### Hosting cost (ap-south-1, from the AWS APIs)
 
-| Item | Rate | Per month |
+| Option | What you get | Per month |
 |---|---|---|
-| t4g.nano instance (2 vCPU burst, 0.5 GB RAM) | $0.0028/hr | $2.04 |
-| Public IPv4 address | $0.005/hr | $3.65 |
-| 12 GB gp3 disk | $0.0912/GB-month | $1.09 |
-| Data out | first 100 GB/month free, then $0.109/GB | $0 at launch volumes |
-| **Total** | | **≈ $6.80 ≈ ₹600** |
+| **Lightsail `nano_3_1` (default)** | 0.5 GB RAM, 2 vCPU burst, 20 GB SSD, 512 GB transfer, public IPv4; static IP free while attached; Postgres on the same box | **$5.00 ≈ ₹440** |
+| Lightsail `micro_3_1` | same with 1 GB RAM, 40 GB SSD, 1 TB transfer | $7.00 ≈ ₹620 |
+| EC2 `t4g.nano` | $2.04 instance + $3.65 public IPv4 + $1.09 for 12 GB gp3 | ≈ $6.80 ≈ ₹600 |
 
-The database is the existing Postgres, so it adds nothing. The instance launches with standard CPU credits, so it can never bill for burst; it slows down instead.
+The IPv6-only Lightsail bundles are cheaper but can't clone from GitHub, which has no IPv6.
 
-**What a nano can do:** it renders one reel at a time. It earns 144 CPU credits a day, about 70 minutes of both cores at full speed; after that it drops to 5% of a core until credits refill. Short kinetic reels are light. Long point-cloud reels (2–3 min) are the heaviest jobs and will be slow on 0.5 GB of RAM plus swap. When demand grows, change the instance type to `t4g.small` (2 GB RAM, $8.18/month, total ≈ $12.90 ≈ ₹1,140) and set `RENDER_PROCESSES=2`. Nothing else changes.
+**What a nano can do:** it renders one reel at a time. The CPU is burstable: sustained full-speed rendering uses up its allowance, and then it slows down. It never bills extra. Short kinetic reels are light. Long point-cloud reels (2–3 min) are the heaviest jobs and will be slow on 0.5 GB of RAM plus swap. When demand grows, move to a bigger bundle (Lightsail snapshot → new instance) and set `RENDER_PROCESSES=2`.
 
 ## Project layout
 

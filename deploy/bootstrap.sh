@@ -38,6 +38,29 @@ if [ ! -f "$ENV_FILE" ]; then                     # first run: template with a f
 fi
 chown root:blooded "$ENV_FILE" && chmod 640 "$ENV_FILE"
 
+# Database: a real DATABASE_URL in the env file wins; otherwise run Postgres on this box (localhost only)
+if grep -qE '^DATABASE_URL=(.*USER:PASSWORD@HOST.*)?$' "$ENV_FILE"; then
+  dnf -y -q install postgresql16-server || dnf -y -q install postgresql15-server
+  [ -f /var/lib/pgsql/data/PG_VERSION ] || postgresql-setup --initdb >/dev/null
+  sed -i -E 's/^(host[[:space:]]+all[[:space:]]+all[[:space:]]+(127\.0\.0\.1\/32|::1\/128)[[:space:]]+)ident/\1scram-sha-256/' /var/lib/pgsql/data/pg_hba.conf
+  systemctl enable -q --now postgresql
+  cd /tmp
+  sudo -u postgres psql -q -c "ALTER SYSTEM SET listen_addresses = 'localhost'" -c "ALTER SYSTEM SET max_connections = 20" \
+    -c "ALTER SYSTEM SET shared_buffers = '32MB'" -c "ALTER SYSTEM SET work_mem = '2MB'" \
+    -c "ALTER SYSTEM SET maintenance_work_mem = '16MB'" -c "ALTER SYSTEM SET effective_cache_size = '128MB'"
+  systemctl restart postgresql
+  PGPW=$(python3.12 -c 'import secrets;print(secrets.token_urlsafe(24))')
+  if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'blooded'" | grep -q 1; then
+    sudo -u postgres psql -q -c "ALTER ROLE blooded PASSWORD '$PGPW'"
+  else
+    sudo -u postgres psql -q -c "CREATE ROLE blooded LOGIN PASSWORD '$PGPW'"
+  fi
+  sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'claude_blooded'" | grep -q 1 \
+    || sudo -u postgres createdb -O blooded -E UTF8 -T template0 claude_blooded
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://blooded:$PGPW@127.0.0.1:5432/claude_blooded|" "$ENV_FILE"
+  cd - >/dev/null
+fi
+
 install -m 644 "$APP_DIR/deploy/claude-blooded-api.service" /etc/systemd/system/
 install -m 644 "$APP_DIR/deploy/claude-blooded-worker.service" /etc/systemd/system/
 install -m 644 "$APP_DIR/deploy/nginx.conf" /etc/nginx/nginx.conf

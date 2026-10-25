@@ -97,7 +97,7 @@ class Mix(Step):
         cfg = self.deps.config
         wd = ctx.workdir
         music.build(str(wd), ctx.skill.music_spec(ctx.spec))
-        mark = cfg.get(f"tiers.{ctx.tier}.watermark") or ""
+        mark = (cfg.get(f"tiers.{ctx.tier}.watermark") or "").replace("{brand}", str(cfg.get("app.name", "")))
         overlay = self._watermark(wd, mark, Path(cfg.get("render.font_dir"))) if mark else None
         loud = cfg.get("render.loudness") or {}
         for src, dst, lufs in (("mix.wav", "reel.mp4", loud.get("voice")), ("music_bed.wav", "reel-no-voice.mp4", loud.get("bed"))):

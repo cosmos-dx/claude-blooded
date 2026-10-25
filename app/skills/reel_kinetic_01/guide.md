@@ -14,5 +14,5 @@ Rules: the headline repeats or sharpens the key words being said, never a differ
 {palettes}
 
 # Output JSON
-{"title","slug" (kebab-case),"brand" (tiny top-left label, e.g. "HIREISH · BHOJPURI EDITION"),"caption","lines":[...]}
+{"title","slug" (kebab-case),"brand" (tiny top-left topic label, e.g. "SYSTEM DESIGN · BHOJPURI EDITION"),"caption","lines":[...]}
 Only state facts the user gave or that are standard; never invent numbers.

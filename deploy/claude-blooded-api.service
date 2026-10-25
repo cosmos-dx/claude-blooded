@@ -1,6 +1,6 @@
 [Unit]
-Description=Hireish Reels API (claude-blooded)
-After=network-online.target
+Description=claude-blooded reels API
+After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
