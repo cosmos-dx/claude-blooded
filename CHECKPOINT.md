@@ -8,8 +8,8 @@ Where the project stands, what was asked, what is done, and what is left. Produc
 |---|---|
 | Site | http://3.6.195.46 (Lightsail `nano_3_1`, Mumbai, static IP, ports 22/80/443) |
 | Hosting cost | $5/month (≈ ₹440): 512 MB RAM, 20 GB SSD, IPv4, Postgres on the same box |
-| Deployed commit | `768b634` (brand-neutral + Lightsail). **Newer work below is not deployed yet.** |
-| Server env | `/etc/claude-blooded.env`. `ADMIN_EMAILS` is still the placeholder; no working LLM key |
+| Deployed commit | `7946f1b`: new design, Design Director, 9:16 + 16:9, MCP at `/mcp/` (deployed 26 Oct, 00:15 IST) |
+| Server env | `/etc/claude-blooded.env`. `ADMIN_EMAILS`, `MEGALLM_API_KEY`, `MEGA_LLM_MODEL_ID=claude-sonnet-4-6` set; the MegaLLM key is still rejected, so reels can't run yet |
 | SSH | `ssh -i ~/.ssh/claude-blooded.pem ec2-user@3.6.195.46` |
 | Domain later | point it at the IP, then `sudo bash deploy/enable_https.sh <domain> <email>` |
 
@@ -81,10 +81,9 @@ Tested end to end over HTTP: bad pack rejected with a fix suggestion, fixed pack
 
 ## Not done / next
 
-1. Get a working LLM key (fresh MegaLLM key, or Anthropic/Bedrock). Then deploy: re-run `deploy/provision_lightsail.sh` (idempotent), set the key and `ADMIN_EMAILS` in `/etc/claude-blooded.env`, restart, make one test reel.
-2. Commit and push this checkpoint's web changes (uncommitted right now).
-3. Push `reel-kinetic-01` to `hireish/automations-marketing`.
-4. Product name ideas with domain availability.
-5. Razorpay live keys and SMTP (login codes go to the server log until then).
-6. Hermes agent workflow, if still wanted.
-7. README: add the Design Director, formats and MCP sections.
+1. Get a working LLM key (fresh MegaLLM key, or Anthropic/Bedrock). Put it in `/etc/claude-blooded.env`, `sudo systemctl restart claude-blooded-api claude-blooded-worker`, make one test reel.
+2. Push `reel-kinetic-01` to `hireish/automations-marketing`.
+3. Product name ideas with domain availability.
+4. Razorpay live keys and SMTP (login codes go to the server log until then).
+5. Hermes agent workflow, if still wanted.
+6. README: add the Design Director, formats and MCP sections.
