@@ -46,10 +46,14 @@ llm:
       kind: anthropic
       api_key: ${ANTHROPIC_API_KEY:-}
       supports_fallbacks: true     # server-side refusal fallbacks (Claude API only)
+      capabilities: [web_search, web_fetch]   # server tools this provider runs (Claude API only)
+      eager_tool_input: true       # stream client-tool inputs as they are generated
       models: {opus: claude-opus-5-5, haiku: claude-haiku-5-5}
     bedrock:
       kind: bedrock
-      api_key: ${AWS_BEDROCK_API_KEY_ANTHROPIC:-}
+      api_key: ${AWS_BEDROCK_API_KEY_ANTHROPIC:-}            # Bedrock API key, or the IAM key pair below
+      access_key_id: ${AWS_BEDROCK_ACCESS_KEY_ID:-}          # IAM user allowed bedrock:InvokeModel*
+      secret_access_key: ${AWS_BEDROCK_SECRET_ACCESS_KEY:-}
       region: ${AWS_BEDROCK_REGION:-ap-south-1}
       models: {opus: anthropic.claude-opus-5-5, haiku: anthropic.claude-haiku-5-5}
     megallm:
@@ -70,9 +74,25 @@ llm:
     voice_director: economy
     publisher: economy
     trend_scout: premium
+    design_director: tier
   prices_usd_per_mtok:
     opus:  {input: 4.0, output: 20.0, cache_read: 0.20, cache_write: 5.0}
     haiku: {input: 0.10, output: 0.50, cache_read: 0.01, cache_write: 0.125}
+  server_tool_prices_usd: {web_search: 0.01, web_fetch: 0.0}   # per call, on top of tokens
+  max_tool_rounds: 8               # agent loop cap: tool calls + pause_turn resumptions per question
+
+# ---------------------------------------------------------------- agent tools (factory: app/llm/tools.py)
+tools:
+  web_search:     {kind: claude_web_search, max_uses: 3, country: IN, timezone: Asia/Kolkata}
+  web_fetch:      {kind: claude_web_fetch, max_uses: 2}
+  contrast_check: {kind: contrast_check}
+agents:
+  tools:                           # always available (client tools run in this app, on any provider)
+    design_director: [contrast_check]
+  research:                        # live web research: needs a provider with the capability (Claude API)
+    tools: {researcher: [web_search, web_fetch], design_director: [web_search, web_fetch]}
+    tiers: [standard]              # free reels design and research from the model's own knowledge
+    min_seconds: 60                # short reels skip web research (≈ ₹15-20 a run) to keep small packs profitable
 
 # ---------------------------------------------------------------- voice
 tts:
@@ -104,10 +124,35 @@ tts:
 skills:
   default: reel-tutor-01
   enabled: [reel-tutor-01, reel-kinetic-01]
-  themes: {reel-tutor-01: [mono, paper, ocean], reel-kinetic-01: [poster, redline, forest]}
+  themes: {reel-tutor-01: [auto, mono, paper, ocean], reel-kinetic-01: [auto, poster, redline, forest]}   # auto = the Design Director's palette
+
+formats:                           # output canvases; every skill renders both
+  - {code: "9:16", label: Vertical,  size: [1080, 1920], for: "Reels · Shorts · TikTok"}
+  - {code: "16:9", label: Landscape, size: [1920, 1080], for: "YouTube · LinkedIn · website"}
 
 workflows:
-  reel: [moderate, research, plan, voice, render, mix, publish]
+  reel: [moderate, research, design, plan, voice, render, mix, publish]
+
+design:
+  enabled: true
+  color_split: [60, 30, 10]        # dominant / secondary / accent share of screen area and time
+  type_split: [60, 30, 10]         # display / text / accent share of on-screen type weight
+  min_text_contrast: 7.0           # WCAG AAA: headlines and captions over the dominant colour
+  min_accent_contrast: 3.0         # WCAG 1.4.11: stickers and graphics over the dominant colour
+  type_scales: [1.25, 1.333, 1.414, 1.5, 1.618]   # ratios the designer may choose
+  base_text_px: {"9:16": 24, "16:9": 26}          # caption size the scale grows from
+  fonts:                           # installed by deploy/fetch_fonts.sh; the designer may only pick these
+    - {family: anton,            weights: [400],           roles: [display],         voice: "condensed grotesque, loud, poster"}
+    - {family: bebas-neue,       weights: [400],           roles: [display],         voice: "tall caps, clean, cinematic"}
+    - {family: oswald,           weights: [500, 700],      roles: [display],         voice: "condensed, sturdy, newsy"}
+    - {family: archivo-black,    weights: [400],           roles: [display, accent], voice: "heavy, wide, playful"}
+    - {family: dm-serif-display, weights: [400],           roles: [display],         voice: "high-contrast serif, editorial, premium"}
+    - {family: playfair-display, weights: [700, 900],      roles: [display, text],   voice: "classic serif, literary"}
+    - {family: space-grotesk,    weights: [400, 500, 700], roles: [display, text],   voice: "geometric grotesk, techy, modern"}
+    - {family: inter,            weights: [400, 500, 600], roles: [text],            voice: "neutral, highly legible UI sans"}
+    - {family: jetbrains-mono,   weights: [400, 600],      roles: [text, accent],    voice: "developer mono, precise"}
+    - {family: ibm-plex-mono,    weights: [400, 600],      roles: [accent],          voice: "corporate mono, calm"}
+    - {family: space-mono,       weights: [400, 700],      roles: [accent],          voice: "retro mono, quirky"}
 
 render:
   processes: ${RENDER_PROCESSES:-1}
@@ -162,6 +207,12 @@ trends:
   region: IN
   run_hour_ist: 6
   niches: [tech interviews, system design, coding, careers in tech]
+
+developers:                        # personal access tokens, the MCP server (/mcp/) and community skill packs
+  token_prefix: rk_
+  max_tokens_per_user: 10
+  catalog_ttl_seconds: 60          # how quickly an approved pack shows up in the style list
+  mcp_extra_hosts: []              # Host headers accepted besides PUBLIC_BASE_URL's (e.g. a second domain)
 
 ui:
   show_costs_to_users: false       # admins always see costs

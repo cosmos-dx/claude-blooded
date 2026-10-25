@@ -5,16 +5,16 @@
 #
 #   AWS_PROFILE=personal AWS_DEFAULT_REGION=ap-south-1 ./deploy/provision_lightsail.sh
 #
-# Optional: NAME (claude-blooded), BUNDLE (nano_3_1), BLUEPRINT (amazon_linux_2023), ZONE (<region>a),
-#           KEY_NAME (claude-blooded), REPO (git URL)
+# Optional: NAME (claude-blooded), BUNDLE (nano_3_1), BLUEPRINT (amazon_linux_2023), ZONE (<region>a), KEY_FILE,
+#           KEY_NAME (<NAME>-key), REPO (git URL)
 set -euo pipefail
 REGION="${AWS_DEFAULT_REGION:-ap-south-1}"
 NAME="${NAME:-claude-blooded}"
 BUNDLE="${BUNDLE:-nano_3_1}"
 BLUEPRINT="${BLUEPRINT:-amazon_linux_2023}"
 ZONE="${ZONE:-${REGION}a}"
-KEY_NAME="${KEY_NAME:-claude-blooded}"
-KEY_FILE="$HOME/.ssh/$KEY_NAME.pem"
+KEY_NAME="${KEY_NAME:-$NAME-key}"                       # Lightsail names are unique across resource types
+KEY_FILE="${KEY_FILE:-$HOME/.ssh/claude-blooded.pem}"
 REPO="${REPO:-https://github.com/cosmos-dx/claude-blooded.git}"
 IP_NAME="$NAME-ip"
 lsail() { aws lightsail --region "$REGION" "$@"; }

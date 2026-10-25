@@ -19,14 +19,15 @@ WEB = ROOT / "web"
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
     log.setup()
     c = get_container()
     try:
         c.plans.sync()                  # mirror config plans into the DB
     except Exception as e:  # noqa: BLE001 — pages still serve; API calls needing the DB will fail until it is reachable
         log.get("startup").error("database not ready: %s", e)
-    yield
+    async with app.state.mcp.session_manager.run():     # the MCP server mounted at /mcp/
+        yield
     c.db.close()
 
 
@@ -42,8 +43,11 @@ def page(name: str) -> str:
 
 def create_app() -> FastAPI:
     app = FastAPI(title=str(get_container().config.get("app.name")), docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    from app.mcp.server import build
+    app.state.mcp = build(get_container())
     app.include_router(api)
     app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
+    app.mount("/mcp", app.state.mcp.streamable_http_app())
 
     @app.exception_handler(AppError)
     async def app_error(_: Request, exc: AppError):

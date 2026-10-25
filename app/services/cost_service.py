@@ -29,6 +29,7 @@ class CostService:
     def __init__(self, config: Config, usage_dao: UsageDAO):
         self.usd_inr = float(config.get("money.usd_inr", 88))
         self.prices = config.get("llm.prices_usd_per_mtok") or {}
+        self.tool_prices = config.get("llm.server_tool_prices_usd") or {}
         self.usage_dao = usage_dao
 
     @contextmanager
@@ -43,8 +44,9 @@ class CostService:
     def llm_usd(self, resp: LLMResponse) -> float:
         p = self.prices.get(resp.model_alias, {})
         u = resp.usage
-        return (u.input_tokens * p.get("input", 0) + u.output_tokens * p.get("output", 0)
-                + u.cache_read * p.get("cache_read", 0) + u.cache_write * p.get("cache_write", 0)) / 1e6
+        tokens = (u.input_tokens * p.get("input", 0) + u.output_tokens * p.get("output", 0)
+                  + u.cache_read * p.get("cache_read", 0) + u.cache_write * p.get("cache_write", 0)) / 1e6
+        return tokens + sum(n * float(self.tool_prices.get(k, 0)) for k, n in u.server_tools.items())
 
     def record_llm(self, resp: LLMResponse, role: str) -> None:
         usd = 0.0 if resp.provider == "fake" else self.llm_usd(resp)

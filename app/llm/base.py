@@ -18,6 +18,8 @@ class LLMRequest:
     effort: str = "medium"
     cache_system: bool = True            # long, stable system prompts are cached
     role: str = ""                       # which agent asked (for the usage ledger)
+    tools: list[dict] = field(default_factory=list)       # provider-ready tool definitions (app/llm/tools.py)
+    capabilities: tuple[str, ...] = ()   # server-side features the provider must support (e.g. web_search)
 
 
 @dataclass
@@ -26,6 +28,7 @@ class LLMUsage:
     output_tokens: int = 0
     cache_read: int = 0
     cache_write: int = 0
+    server_tools: dict = field(default_factory=dict)      # e.g. {"web_search": 2} (billed per call)
 
 
 @dataclass
@@ -37,6 +40,7 @@ class LLMResponse:
     model: str
     model_alias: str
     stop_reason: str = ""
+    sources: list[dict] = field(default_factory=list)     # [{"url", "title"}] the model actually retrieved
     raw: Any = field(default=None, repr=False)
 
 
@@ -54,6 +58,10 @@ class LLMProvider(ABC):
     @abstractmethod
     def available(self) -> bool:
         """True when credentials are configured."""
+
+    def supports(self, capabilities: tuple[str, ...]) -> bool:
+        """True when every server-side capability (from config llm.providers.<name>.capabilities) is offered."""
+        return set(capabilities) <= set(self.settings.get("capabilities") or [])
 
     @abstractmethod
     def complete(self, request: LLMRequest) -> LLMResponse:

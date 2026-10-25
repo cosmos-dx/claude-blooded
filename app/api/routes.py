@@ -121,10 +121,51 @@ def job_file(job_id: str, name: str, request: Request, user: dict = Depends(curr
     return FileResponse(path, filename=None if inline else f"{slug}-{name}", headers={"Cache-Control": "private, no-store"})
 
 
+# ---------------------------------------------------------------- developers (personal access tokens, skill packs)
+class TokenIn(BaseModel):
+    name: str = Field(default="", max_length=60)
+
+
+@api.get("/tokens")
+def list_tokens(user: dict = Depends(current_user), c: Container = Depends(container)):
+    return {"tokens": c.developers.list_tokens(user), "mcp_url": f"{str(c.config.get('app.base_url')).rstrip('/')}/mcp/"}
+
+
+@api.post("/tokens")
+def create_token(body: TokenIn, user: dict = Depends(current_user), c: Container = Depends(container)):
+    return c.developers.create_token(user, body.name)
+
+
+@api.delete("/tokens/{token_id}")
+def revoke_token(token_id: str, user: dict = Depends(current_user), c: Container = Depends(container)):
+    c.developers.revoke(user, token_id)
+    return {"ok": True}
+
+
+@api.get("/skill-packs")
+def my_packs(user: dict = Depends(current_user), c: Container = Depends(container)):
+    return {"packs": c.catalog.mine(user)}
+
+
 # ---------------------------------------------------------------- admin
+class ReviewIn(BaseModel):
+    decision: str = Field(pattern="^(approve|reject|retire)$")
+    note: str = Field(default="", max_length=500)
+
+
 @api.get("/admin/summary")
 def admin_summary(days: int = 30, _: dict = Depends(admin_user), c: Container = Depends(container)):
     return c.admin.summary(days)
+
+
+@api.get("/admin/skill-packs")
+def pack_queue(status: str = "pending", _: dict = Depends(admin_user), c: Container = Depends(container)):
+    return {"packs": c.catalog.queue(status)}
+
+
+@api.post("/admin/skill-packs/{pack_id}/review")
+def review_pack(pack_id: str, body: ReviewIn, admin: dict = Depends(admin_user), c: Container = Depends(container)):
+    return c.catalog.review(admin, pack_id, body.decision, body.note)
 
 
 @api.get("/healthz")

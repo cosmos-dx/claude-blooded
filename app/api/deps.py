@@ -11,7 +11,14 @@ def container() -> Container:
 
 
 def current_user(request: Request) -> dict:
+    """The browser session cookie, or a personal access token (Authorization: Bearer ...) for scripts and MCP clients."""
     c = get_container()
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        user = c.developers.user_for_token(auth[7:].strip())
+        if not user:
+            raise Unauthorized("invalid or revoked access token")
+        return user
     token = request.cookies.get(c.config.get("security.cookie_name", "hr_session"))
     if not token:
         raise Unauthorized("please log in")

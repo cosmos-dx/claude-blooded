@@ -15,4 +15,8 @@ fetch jetbrains-mono 400 600 700
 fetch ibm-plex-mono 400 600 700
 fetch anton 400
 fetch archivo-black 400
+fetch bebas-neue 400
+fetch oswald 500 700
+fetch dm-serif-display 400
+fetch space-mono 400 700
 echo "fonts in $OUT"

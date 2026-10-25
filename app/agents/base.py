@@ -11,6 +11,7 @@ from app.core.config import Config
 from app.core.errors import AppError, ProviderError
 from app.core.registry import Registry
 from app.llm.router import Conversation, ModelRouter
+from app.llm.tools import Tool, build
 
 PROMPTS = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -27,6 +28,20 @@ class Agent:
 
     def __init__(self, router: ModelRouter, config: Config):
         self.router, self.config = router, config
+
+    def tools(self, request: dict, tier: str) -> list[Tool]:
+        """This agent's tools from config: the always-on ones (agents.tools.<role>) plus live web research
+        (agents.research) for eligible tiers and lengths, when a provider in the role's profile can run it."""
+        cfg = self.config
+        names = list(cfg.get(f"agents.tools.{self.role}") or [])
+        research = cfg.get("agents.research") or {}
+        web = (research.get("tools") or {}).get(self.role) or []
+        eligible = tier in (research.get("tiers") or []) and int(request.get("seconds") or 0) >= int(research.get("min_seconds") or 0)
+        if web and eligible:
+            caps = [t.capability for t in build(web, cfg) if t.server]
+            if self.router.can_serve(self.role, tier, caps):
+                names += web
+        return build(names, cfg)
 
     def system_prompt(self, **fmt) -> str:
         text = (PROMPTS / f"{self.role}.md").read_text()

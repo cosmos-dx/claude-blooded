@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from app.core.registry import Registry
-from app.skills.base import Skill
+from app.skills.base import Look, Skill
 
 
 @dataclass
@@ -20,6 +20,8 @@ class ReelContext:
     workdir: Path
     skill: Skill
     theme: str
+    format: str = "9:16"
+    design: Optional[dict] = None          # finalised brief from the design step (None when skipped)
     research: dict = field(default_factory=dict)
     spec: dict = field(default_factory=dict)
     timeline: dict = field(default_factory=dict)
@@ -28,6 +30,10 @@ class ReelContext:
     trends: list = field(default_factory=list)
     planner_convo: Any = None
     duration: float = 0.0
+
+    @property
+    def look(self) -> Look:
+        return Look(theme=self.theme, format=self.format, brief=self.design)
 
     @property
     def out(self) -> Path:
@@ -59,6 +65,7 @@ class StepDeps:
     tts: Any
     cost: Any
     trends: Any
+    design: Any                            # DesignService
 
 
 class Workflow:

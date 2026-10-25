@@ -29,8 +29,8 @@ class Theme(BaseModel):
     background: Literal["solid", "vignette", "grid", "dots", "gradient"] = "solid"
     glow: float = Field(default=0.32, ge=0.0, le=0.8)
     grain: float = Field(default=0.0, ge=0.0, le=1.0)
-    sans: Literal["inter", "space-grotesk", "playfair-display"] = "inter"
-    mono: Literal["jetbrains-mono", "ibm-plex-mono"] = "jetbrains-mono"
+    sans: str = Field(default="inter", pattern=r"^[a-z0-9-]{2,40}$")             # a font family folder in REEL_FONT_DIR
+    mono: str = Field(default="jetbrains-mono", pattern=r"^[a-z0-9-]{2,40}$")
     voice_tone: str = Field(default="", max_length=200)
 
     @field_validator("stops")
@@ -64,6 +64,18 @@ BUILTIN = {
                    description="Midnight navy through teal to ice-white highlights, coral accent. Moody and cinematic, still minimal.",
                    stops=[(0.0, [3, 8, 20]), (0.45, [22, 92, 122]), (1.0, [224, 246, 250])], accent=[255, 122, 92]),
 }
+
+
+def from_brief(brief: dict) -> Theme:
+    """The Design Director's palette as a theme: dominant = ground (ink 0), secondary = ink (1), accent = accent;
+    the text face drives the sans and the accent face the mono."""
+    p, t = brief["palette"], brief["type"]
+    rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+    dark = bool(p.get("dark", True))
+    return Theme(slug="brief", name=(p.get("name") or "Designer's pick")[:40], description=(p.get("rationale") or "")[:400],
+                 stops=[(0.0, rgb(p["dominant"]["hex"])), (1.0, rgb(p["secondary"]["hex"]))], accent=rgb(p["accent"]["hex"]),
+                 background="vignette" if dark else "grid", glow=0.3 if dark else 0.04, grain=0.0 if dark else 0.2,
+                 sans=t["text"]["family"], mono=t["accent"]["family"])
 
 
 def all_themes() -> dict:

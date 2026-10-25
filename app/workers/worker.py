@@ -35,8 +35,9 @@ class Worker:
         jid = str(job["id"])
         req = job["request"]
         workdir = c.storage.workdir(jid)
-        skill = c.skills[req["skill"]]
-        ctx = ReelContext(job=job, request=req, tier=job["tier"], workdir=workdir, skill=skill, theme=req["theme"])
+        skill = c.catalog.get(req["skill"])
+        ctx = ReelContext(job=job, request=req, tier=job["tier"], workdir=workdir, skill=skill, theme=req["theme"],
+                          format=req.get("format", "9:16"))
 
         def on_event(stage, note, tally):
             c.job_events.add(jid, stage, note, tally.input_tokens, tally.output_tokens, tally.characters, tally.cost_inr)

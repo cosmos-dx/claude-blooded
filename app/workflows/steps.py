@@ -5,6 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from app.core import logging as log
 from app.core.errors import AppError
 from app.core.ffmpeg import ffmpeg, probe_duration
 from app.skills import audio, music
@@ -31,8 +32,32 @@ class Research(Step):
 
     def run(self, ctx: ReelContext, progress) -> str:
         ctx.trends = [t["digest"] for t in self.deps.trends.latest()]
-        ctx.research = self.deps.agents["researcher"].research(ctx.request, ctx.tier, ctx.trends)
-        return ctx.research.get("angle", "")[:200]
+        ctx.research, sources = self.deps.agents["researcher"].research(ctx.request, ctx.tier, ctx.trends)
+        n = self.deps.design.save_research(str(ctx.job["id"]), ctx.request, ctx.research, sources)
+        web = f" · {len(sources)} sources" if sources else ""
+        return f"{ctx.research.get('angle', '')[:180]} ({n} facts{web})"
+
+
+@STEPS.register("design")
+class Design(Step):
+    """The Design Director's brief. Never fails the reel: without it, an "auto" theme falls back to the style's default."""
+    name, weight = "design", 0.8
+
+    def run(self, ctx: ReelContext, progress) -> str:
+        if not self.deps.config.get("design.enabled", True):
+            return "skipped"
+        svc = self.deps.design
+        try:
+            ctx.design = self.deps.agents["design_director"].design(
+                ctx.request, ctx.research, ctx.skill.code, ctx.format, ctx.tier, ctx.trends,
+                svc.system.catalog_text(), svc.system.rules(), svc.finalize)
+        except AppError as e:
+            log.get("design").warning("job %s: design brief skipped: %s", ctx.job["id"], e)
+            return f"skipped ({e.message[:120]}); using the style's default theme"
+        svc.save_brief(str(ctx.job["id"]), ctx.request, ctx.format, ctx.design)
+        p, t = ctx.design["palette"], ctx.design["type"]
+        return (f"{p['name']}: {p['dominant']['hex']} / {p['secondary']['hex']} / {p['accent']['hex']} · "
+                f"{t['display']['family']} + {t['text']['family']} + {t['accent']['family']} · {ctx.design['research_mode']} research")
 
 
 @STEPS.register("plan")
@@ -41,8 +66,8 @@ class Plan(Step):
 
     def run(self, ctx: ReelContext, progress) -> str:
         planner = self.deps.agents["planner"]
-        ctx.planner_convo = planner.start(ctx.skill, ctx.tier, int(ctx.request["seconds"]))
-        ctx.spec = planner.plan(ctx.planner_convo, ctx.skill, ctx.request, ctx.research, ctx.theme)
+        ctx.planner_convo = planner.start(ctx.skill, ctx.tier, int(ctx.request["seconds"]), ctx.look)
+        ctx.spec = planner.plan(ctx.planner_convo, ctx.skill, ctx.request, ctx.research, ctx.look)
         (ctx.workdir / "plan.json").write_text(json.dumps(ctx.spec, ensure_ascii=False, indent=1))
         return f"{len(ctx.skill.lines(ctx.spec))} lines planned"
 
@@ -85,8 +110,8 @@ class Render(Step):
     name, weight = "render", 6.0
 
     def run(self, ctx: ReelContext, progress) -> str:
-        ctx.skill.render(ctx.workdir, ctx.spec, ctx.theme, progress, int(self.deps.config.get("render.processes", 1)))
-        return "rendered"
+        ctx.skill.render(ctx.workdir, ctx.spec, ctx.look, progress, int(self.deps.config.get("render.processes", 1)))
+        return f"rendered {ctx.format}" + (" with the designed palette" if ctx.look.designed else "")
 
 
 @STEPS.register("mix")
@@ -98,7 +123,8 @@ class Mix(Step):
         wd = ctx.workdir
         music.build(str(wd), ctx.skill.music_spec(ctx.spec))
         mark = (cfg.get(f"tiers.{ctx.tier}.watermark") or "").replace("{brand}", str(cfg.get("app.name", "")))
-        overlay = self._watermark(wd, mark, Path(cfg.get("render.font_dir"))) if mark else None
+        size = next((tuple(f["size"]) for f in cfg.get("formats") or [] if f["code"] == ctx.format), (1080, 1920))
+        overlay = self._watermark(wd, mark, Path(cfg.get("render.font_dir")), size) if mark else None
         loud = cfg.get("render.loudness") or {}
         for src, dst, lufs in (("mix.wav", "reel.mp4", loud.get("voice")), ("music_bed.wav", "reel-no-voice.mp4", loud.get("bed"))):
             inputs = ["-i", str(wd / "video_silent.mp4"), "-i", str(wd / src)] + (["-i", str(overlay)] if overlay else [])
@@ -111,16 +137,18 @@ class Mix(Step):
         return f"{ctx.duration:.1f}s video"
 
     @staticmethod
-    def _watermark(wd: Path, text: str, font_dir: Path) -> Path:
-        """Transparent 1080x1920 PNG with the watermark near the bottom (works with any ffmpeg build)."""
+    def _watermark(wd: Path, text: str, font_dir: Path, size: tuple[int, int]) -> Path:
+        """Transparent PNG the size of the video with the watermark near the bottom (works with any ffmpeg build)."""
         from PIL import Image, ImageDraw, ImageFont
-        im = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
+        W, H = size
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
         font_path = font_dir / "jetbrains-mono" / "400.ttf"
         font = ImageFont.truetype(str(font_path), 26) if font_path.exists() else ImageFont.load_default()
         w = d.textlength(text, font=font)
-        d.rounded_rectangle([(1080 - w) / 2 - 16, 1748, (1080 + w) / 2 + 16, 1792], 10, fill=(0, 0, 0, 120))
-        d.text((540, 1770), text, font=font, fill=(255, 255, 255, 200), anchor="mm")
+        cy = H - max(60, round(H * 0.078))
+        d.rounded_rectangle([(W - w) / 2 - 16, cy - 22, (W + w) / 2 + 16, cy + 22], 10, fill=(0, 0, 0, 120))
+        d.text((W / 2, cy), text, font=font, fill=(255, 255, 255, 200), anchor="mm")
         out = wd / "watermark.png"
         im.save(out)
         return out

@@ -119,6 +119,25 @@ class Container:
 
     # ---------------------------------------------------------------- services
     @cached_property
+    def catalog(self):
+        from app.dao.developers import SkillPackDAO
+        from app.services.skill_catalog import SkillCatalog
+        return SkillCatalog(self.config, self.skills, SkillPackDAO(self.db), self.design.system)
+
+    @cached_property
+    def developers(self):
+        from app.dao.developers import ApiTokenDAO
+        from app.services.developer_service import DeveloperService
+        return DeveloperService(self.config, ApiTokenDAO(self.db))
+
+    @cached_property
+    def design(self):
+        from app.dao.design import DesignBriefDAO, FindingDAO
+        from app.design.system import DesignSystem
+        from app.services.design_service import DesignService
+        return DesignService(self.db, DesignSystem(self.config), DesignBriefDAO(self.db), FindingDAO(self.db))
+
+    @cached_property
     def cost(self):
         from app.services.cost_service import CostService
         return CostService(self.config, self.usage)
@@ -147,7 +166,8 @@ class Container:
     @cached_property
     def job_service(self):
         from app.services.job_service import JobService
-        return JobService(self.config, self.db, self.jobs, self.job_events, self.usage, self.credits, self.storage, list(self.skills))
+        return JobService(self.config, self.db, self.jobs, self.job_events, self.usage, self.credits, self.storage, self.catalog,
+                          self.design)
 
     @cached_property
     def admin(self):
@@ -159,7 +179,8 @@ class Container:
     def step_deps(self):
         from app.workflows import steps as _s  # noqa: F401  (register)
         from app.workflows.base import StepDeps
-        return StepDeps(config=self.config, router=self.router, agents=self.agents, tts=self.tts, cost=self.cost, trends=self.trends)
+        return StepDeps(config=self.config, router=self.router, agents=self.agents, tts=self.tts, cost=self.cost, trends=self.trends,
+                        design=self.design)
 
 
 @lru_cache(maxsize=1)

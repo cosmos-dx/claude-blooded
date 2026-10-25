@@ -6,21 +6,24 @@ from app.core.errors import AppError, NotFound, PaymentRequired, TooManyRequests
 from app.dao.commerce import CreditDAO
 from app.dao.jobs import JobDAO, JobEventDAO, UsageDAO
 from app.db.pool import Database
+from app.services.design_service import DesignService
+from app.services.skill_catalog import SkillCatalog
 from app.storage.stores import Storage
 
 
 class JobService:
     def __init__(self, config: Config, db: Database, jobs: JobDAO, events: JobEventDAO, usage: UsageDAO, credits: CreditDAO,
-                 storage: Storage, skill_codes: list[str]):
+                 storage: Storage, catalog: SkillCatalog, design: DesignService):
         self.config, self.db, self.jobs, self.events, self.usage, self.credits, self.storage = config, db, jobs, events, usage, credits, storage
-        self.skill_codes = skill_codes
-        self.themes = config.get("skills.themes") or {}
+        self.catalog, self.design = catalog, design
+        self.formats = [f["code"] for f in config.get("formats") or []] or ["9:16"]
         self.languages = {l["code"] for l in (config.get("tts.languages") or [])}
         self.max_chars = int(config.get("limits.prompt_max_chars", 1500))
         self.max_running = int(config.get("limits.jobs_running_per_user", 2))
 
     def options(self) -> dict:
-        return {"skills": self.skill_codes, "themes": self.themes, "languages": self.config.get("tts.languages") or [],
+        return {"skills": self.catalog.options(), "themes": self.catalog.themes(), "languages": self.config.get("tts.languages") or [],
+                "formats": self.config.get("formats") or [],
                 "lengths": sorted({int(p["max_seconds"]) for p in (self.config.get("plans") or [])})}
 
     def _clean(self, req: dict) -> dict:
@@ -31,17 +34,21 @@ class JobService:
             if len(req.get(k) or "") > self.max_chars:
                 raise AppError(f"{k.replace('_', ' ')} is too long (max {self.max_chars} characters)")
         skill = req.get("skill") or self.config.get("skills.default")
-        if skill not in self.skill_codes:
+        themes = self.catalog.themes()
+        if skill not in self.catalog.all():
             raise AppError("unknown style")
-        theme = req.get("theme") or (self.themes.get(skill) or [None])[0]
-        if theme not in (self.themes.get(skill) or [theme]):
+        theme = req.get("theme") or (themes.get(skill) or [None])[0]
+        if theme not in (themes.get(skill) or [theme]):
             raise AppError("unknown theme for this style")
         language = req.get("language") or "en-IN"
         if language not in self.languages:
             raise AppError("unsupported language")
         seconds = int(req.get("seconds") or 30)
+        fmt = req.get("format") or self.formats[0]
+        if fmt not in self.formats:
+            raise AppError("unsupported format")
         return {"problem": problem, "details": (req.get("details") or "").strip(), "voice_prompt": (req.get("voice_prompt") or "").strip(),
-                "language": language, "skill": skill, "theme": theme, "seconds": seconds,
+                "language": language, "skill": skill, "theme": theme, "format": fmt, "seconds": seconds,
                 "narrator": "male" if req.get("narrator") == "male" else "female"}
 
     def create(self, user: dict, req: dict) -> dict:
@@ -79,6 +86,7 @@ class JobService:
                    created_at=job["created_at"].isoformat(), expires_at=job["expires_at"].isoformat() if job.get("expires_at") else None,
                    files=self.config.get("storage.files") if job["status"] == "done" else [])
         if with_events:
+            out["design"] = self.design.for_job(str(job["id"]))
             events = self.events.for_job(job["id"])
             out["events"] = [{"stage": e["stage"], "message": e["message"], "at": e["created_at"].isoformat(),
                               **({"input_tokens": e["input_tokens"], "output_tokens": e["output_tokens"], "characters": e["characters"],
